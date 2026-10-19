@@ -1,0 +1,7 @@
+{
+  "name": "Seven-segment \u2014 original firmware",
+  "sha256": "e845be0b9f593ae4a250ba156773518c272191be92c2029a3ab4d32e69894501",
+  "application_address": "0x08000800",
+  "size": 12072,
+  "notes": "Successful programming and runtime operation reported with CJP gateway v5. Intended for the backed-up seven-segment gadget."
+}
