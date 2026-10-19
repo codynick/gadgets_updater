@@ -1,4 +1,4 @@
-CODY NICK GADGETS UPDATER — COMPLETE RELEASE v3
+CODY NICK GADGETS UPDATER — COMPLETE RELEASE v4
 
 This is a full application, not a patch. No previous release is required.
 
@@ -30,6 +30,11 @@ GUI v1/v2 backup.json files remain supported. Keep their original.bin beside the
 First run from this separate extracted folder leaves the prior installation and
 Git clone intact. To publish after testing, see docs\GITHUB_SETUP.md.
 
-31 automated tests passed. Physical K6 recognition and LED behavior still need
+37 automated tests passed. Physical K6 recognition and LED behavior still need
 confirmation on your hardware. The existing seven-segment v5 programming path
 was successfully tested previously.
+
+AVRDUDE PATH MEMORY
+Select avrdude.exe once with Browse. Its location is saved immediately and
+reused after closing/reopening the updater. A moved/missing installation
+falls back to automatic discovery. Settings stay outside the Git repository.

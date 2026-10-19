@@ -1,4 +1,4 @@
-# CodyNick_Gadgets_Updater — v3 complete
+# CodyNick_Gadgets_Updater — v4 complete
 
 Windows technician GUI for updating compatible CodyNick STM32 gadgets through
 an Arduino Uno CJP. Includes COM-port selection, a local firmware list, BIN
@@ -68,7 +68,7 @@ working power/communication. Full details are in the operating guide.
 ## Build and verification
 
 `Run_Tests.bat` runs the simulated flash, workflow and firmware catalog tests.
-All 31 automated tests passed during preparation, including duplicate imports,
+All 37 automated tests passed during preparation, including duplicate imports,
 version preservation, checksum tampering, backup-before-write and recovery.
 The original CJP v5 programming workflow was successfully tested on the
 seven-segment gadget. This complete version includes the catalog, command-line Git guidance,
@@ -94,3 +94,12 @@ not continuously detect unplugging. Green does not establish upgrade completion.
 Run **Backup only** with the K6 gadget and inspect the `BOOTLOADER_PROFILE` line.
 This does not erase/write the gadget. Use Start_Updater.bat rather than any
 previously built EXE. See docs/K6_PROFILE.md for the profile checks.
+
+## Remembered AVRDUDE location
+
+Select AVRDUDE once with Browse. A valid executable/configuration pair is
+saved immediately to `%LOCALAPPDATA%\CJP Upgrader\settings.json`. The saved
+location is reused on restart, including from other copies of this updater.
+Manually typed paths are saved when starting an operation. If the saved files
+are moved or missing, automatic Arduino-package detection is tried again.
+The preference is local to this PC/user and is not committed to GitHub.

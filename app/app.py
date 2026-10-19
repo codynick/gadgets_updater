@@ -14,9 +14,11 @@ from gateway_link import BASE, Link
 from engine import validate_image, read_flash, save_backup, load_backup, make_target, program, sha
 from firmware_store import scan, add_file
 from profiles import identify_bootloader, mismatch_summary
+from settings import load_avrdude, save_avrdude, valid_avrdude
 
 ASSETS=Path(getattr(sys,'_MEIPASS',Path(__file__).resolve().parent))
 DATA=Path(os.environ.get('LOCALAPPDATA',str(Path.home())))/'CJP Upgrader'
+SETTINGS=DATA/'settings.json'
 PROJECT=Path(sys.executable).resolve().parent if getattr(sys,'frozen',False) else Path(__file__).resolve().parent.parent
 FIRMWARE=PROJECT/'firmware'
 
@@ -24,14 +26,14 @@ def find_avrdude():
     root=Path(os.environ.get('LOCALAPPDATA',''))/'Arduino15/packages'
     choices=list(root.glob('arduino/tools/avrdude/*/bin/avrdude.exe'))
     choices+=list(root.glob('MiniCore/tools/avrdude/*/bin/avrdude.exe'))
-    return str(sorted(choices)[-1]) if choices else ''
+    return next((str(p) for p in reversed(sorted(choices)) if valid_avrdude(p)),'')
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title('CodyNick Gadgets Updater v3');self.geometry('1000x810');self.minsize(850,700)
+        self.title('CodyNick Gadgets Updater v4');self.geometry('1000x810');self.minsize(850,700)
         self.events=queue.Queue();self.busy=False;self.stop=threading.Event();self.logfile=None
-        self.port=tk.StringVar();self.image=tk.StringVar();self.avr=tk.StringVar(value=find_avrdude())
+        self.port=tk.StringVar();self.image=tk.StringVar();self.avr=tk.StringVar(value=load_avrdude(SETTINGS,find_avrdude))
         self.catalog_choice=tk.StringVar();self.add_to_catalog=tk.BooleanVar(value=False)
         self.firmware_info=tk.StringVar(value='Choose firmware from the local folder or browse a BIN.')
         self.status=tk.StringVar(value='Select the CJP COM port and application BIN.')
@@ -84,7 +86,10 @@ class App(tk.Tk):
     def browse(self,var,kind):
         p=filedialog.askopenfilename(filetypes=[('BIN firmware','*.bin')] if kind=='bin' else [('AVRDUDE','avrdude.exe')])
         if not p: return
-        if kind!='bin': var.set(p);return
+        if kind!='bin':
+            if not valid_avrdude(p):
+                messagebox.showerror('AVRDUDE required','Select avrdude.exe with its matching ../etc/avrdude.conf.',parent=self);return
+            var.set(p);self.remember_avrdude(p);return
         try:
             data=Path(p).read_bytes();validate_image(data,32768)
             var.set(p);self.catalog_choice.set('')
@@ -101,6 +106,11 @@ class App(tk.Tk):
             if match: self.catalog_choice.set(match);self.choose_firmware()
             elif self.catalog_choice.get() not in self.firmware_map: self.catalog_choice.set('')
         except Exception as exc: messagebox.showerror('Firmware folder',str(exc),parent=self)
+
+    def remember_avrdude(self,path):
+        try: save_avrdude(SETTINGS,path)
+        except (OSError,ValueError) as exc:
+            messagebox.showwarning('Cannot save AVRDUDE preference','This session can continue, but the path could not be saved:\n'+str(exc),parent=self)
 
     def choose_firmware(self,event=None):
         row=self.firmware_map.get(self.catalog_choice.get())
@@ -190,6 +200,7 @@ class App(tk.Tk):
         conf=avr.parent.parent/'etc/avrdude.conf'
         if not avr.is_file() or not conf.is_file():
             messagebox.showerror('AVRDUDE required','Browse to avrdude.exe from your Arduino installation. Its matching etc/avrdude.conf must exist.');return
+        self.remember_avrdude(avr)
         source=None
         try:
             if mode=='upgrade':
@@ -213,7 +224,7 @@ class App(tk.Tk):
     def worker(self,mode,port,avr,conf,source):
         link=None;backup_path=None;writing=False;outcome=None
         try:
-            self.log('CodyNick Gadgets Updater v3 — '+mode.upper())
+            self.log('CodyNick Gadgets Updater v4 — '+mode.upper())
             self.ask('Disconnect gadget','Disconnect the gadget from CJP. Leave CJP connected by USB.\nClose Arduino Serial Monitor and other serial programs.\n\nClick OK to prepare the CJP automatically.')
             if self.stop.is_set(): raise RuntimeError('Stopped before programming.')
             self.stage('Preparing CJP gateway…',2)
