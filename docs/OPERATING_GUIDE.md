@@ -10,7 +10,7 @@
 4. Check that the firmware belongs to the physical gadget being connected.
 5. Click **Upgrade gadget**. Disconnect the gadget when instructed. Leave CJP
    connected by USB and close any other serial application.
-6. The updater prepares the CJP automatically using the tested v5 gateway.
+6. The updater prepares the CJP automatically using gateway v6 (based on the hardware-tested v5 gateway).
 7. Keep the gadget disconnected through the next dialog. Click OK, then
    connect it only when the status says **CONNECT GADGET NOW**.
 8. Wait for backup, programming and full-flash verification to finish. The
@@ -45,7 +45,9 @@ upgrade as incomplete and restore before using the gadget. Keep power connected
 while a page is being programmed. Setup/read operations may finish before a
 pending stop is acted on.
 
-The tool never erases/writes the first 2 KB bootloader area. Its backup covers
+The original verified bootloader and supplied K6 bootloader profiles are
+recognized. Unknown profiles can be backed up read-only; Upgrade/Restore refuse
+them. The tool never erases/writes the first 2 KB bootloader area. Its backup covers
 main flash only; no option-byte, protection or mass-erase operation is used.
 Restoration depends on the preserved bootloader, working communication and
 stable power. A selected BIN must also be compatible with any preserved data
@@ -53,11 +55,9 @@ beyond its end. Verification establishes flash contents, not runtime behavior.
 
 ## Publish firmware
 
-Adding a file to `firmware/` does not program a gadget and does not send the
-file online. After checking its metadata, use **GitHub / Publish…** and follow
-the GitHub Desktop review, commit and push instructions. See
-[GITHUB_SETUP.md](GITHUB_SETUP.md) for the first-time setup. This version's
-GitHub button is a Desktop handoff, not an embedded Git client.
+Adding a file to `firmware/` does not program a gadget or send the file online.
+Use **GitHub push commands…** to display the Command Prompt commands for review,
+commit and push. See [GITHUB_SETUP.md](GITHUB_SETUP.md). No GitHub Desktop is used.
 
 ## Standalone Windows EXE
 

@@ -1,114 +1,99 @@
-# Create CodyNick_Gadgets_Updater on GitHub
+# Command-line GitHub workflow
 
-This package is prepared locally. An online GitHub repository has **not** been
-created by the package. The following steps create it under your own account.
-Use one repository containing both `app/` and `firmware/`; a second repository
-or Git submodule is unnecessary here.
+The online repository is https://github.com/codynick/gadgets_updater.
+Use Windows Command Prompt. No GitHub Desktop is needed.
 
-## 1. Install and sign in
+## Existing local clone
 
-Install [GitHub Desktop](https://desktop.github.com/) and sign into your GitHub
-account through its browser sign-in flow. Return to Desktop after authentication.
-You do not need to place a GitHub password or token in the updater.
+If `D:\GitHub\gadgets_updater` is already your clone, close the updater and save
+any local changes in Git before updating it. Extract this complete archive into
+a separate folder and test it there first. This leaves the current clone intact.
+When ready, copy the complete release's contents into your clone, retaining its
+`.git` folder and your additional `firmware/` entries. Review the differences:
 
-## 2. Create the local repository
+```bat
+cd /d "D:\GitHub\gadgets_updater"
+git status --short
+git diff
+```
 
-In Desktop, choose **File → New repository**. Enter:
+This release includes its own `.gitignore` and no Git metadata or hardware
+backups. Do not delete your clone or its firmware to install it.
 
-| Field | Value |
-| --- | --- |
-| Name | `CodyNick_Gadgets_Updater` |
-| Description | `Technician GUI and firmware collection for CodyNick gadgets` |
-| Local path | `D:\GitHub` (or another writable parent folder) |
-| Initialize with README | Checked |
-| Git ignore | None — the prepared project includes its own |
-| License | None for now |
+## First clone, if needed
 
-Click **Create repository**. With those values, the actual project folder is
-`D:\GitHub\CodyNick_Gadgets_Updater`. The Local path field is its **parent**.
+Check `git --version`. If Git is not installed, install Git for Windows and
+reopen Command Prompt. Then:
 
-## 3. Copy the prepared files
+```bat
+if not exist "D:\GitHub" mkdir "D:\GitHub"
+cd /d "D:\GitHub"
+git clone https://github.com/codynick/gadgets_updater.git
+```
 
-Extract the downloaded ZIP into a temporary folder, such as Downloads. Open
-the extracted `CodyNick_Gadgets_Updater` folder. Copy **its contents** into the
-newly created local repository. Replace the automatically created README with
-the provided README when asked. Keep the `.git` folder created by Desktop.
+Copy the contents of the extracted release's `gadgets_updater` folder into
+`D:\GitHub\gadgets_updater`, replacing the prepared project files as appropriate.
+`Start_Updater.bat`, `app`, `firmware` and `docs` must sit directly in the clone.
+Avoid a second nested `gadgets_updater` folder.
 
-The destination should contain `Start_Updater.bat`, `README.md`, `.gitignore`,
-`app/`, `firmware/` and `docs/` directly. Avoid a second nested folder named
-`CodyNick_Gadgets_Updater` inside the repository. Windows may hide file extensions;
-compare the names carefully.
+After reviewing, commit and push:
 
-Double-click `Start_Updater.bat` from this destination folder. The firmware list
-should contain **Seven-segment — original firmware**. Verify the list and Browse
-controls first; adding files does not program hardware.
+```bat
+cd /d "D:\GitHub\gadgets_updater"
+git add .
+git diff --cached --stat
+git commit -m "Update complete gadget updater with K6 profile and status LED"
+git push -u origin HEAD
+```
 
-## 4. Commit and publish
+If Git requests commit identity, set your own name and commit email locally:
 
-Return to Desktop and select this repository. Review the Changes list. Enter
-the summary `Add CodyNick updater and initial seven-segment firmware`, then
-click **Commit to main** (or the branch name shown).
+```bat
+git config user.name "YOUR NAME"
+git config user.email "YOUR GITHUB COMMIT EMAIL"
+```
 
-Click **Publish repository**. Keep **Keep this code private** checked for the
-initial project, select your personal account or the intended organization,
-and publish. Then use **Repository → View on GitHub** to check it online.
+Repeat the commit and push after setting those values. Complete GitHub
+sign-in if prompted. Stop and inspect any rejected push; no force push is needed
+for this workflow.
 
-Its address will be `https://github.com/YOUR_ACCOUNT/CodyNick_Gadgets_Updater`.
-The folder name alone does not create that address; publishing does.
+## Subsequent BIN additions
 
-## 5. Add a BIN and share it later
+In the GUI, tick **Add browsed BIN to local firmware folder**, then browse to
+an application BIN. The BIN is copied and checksum metadata is created. The
+original file is retained. You can also tick the checkbox after browsing.
+Duplicate contents reuse an existing entry; different contents get a new name.
+Imported firmware starts as unverified; a copied or pushed file is not proof of
+hardware compatibility.
 
-In the updater, tick **Add browsed BIN to local firmware folder** and browse to
-the application BIN. The GUI copies it and creates a JSON metadata file. It
-also switches the selected path to the saved copy. You can tick the checkbox
-after browsing to add the current file. Identical contents reuse an existing
-entry. Different contents always receive a new filename.
+To publish new BINs from a clone:
 
-Click **GitHub / Publish…**. This opens publishing instructions and attempts to
-launch the standard GitHub Desktop installation. It does not upload anything.
-In Desktop, select **CodyNick_Gadgets_Updater**, review the new `firmware/*.bin`
-and `.json` pair, enter a summary such as `Add seven-segment v2 firmware`, commit,
-then click **Push origin**. The files are now shared with people who have access.
-You can continue using local firmware when offline and push later.
+```bat
+cd /d "D:\GitHub\gadgets_updater"
+git add firmware
+git diff --cached --stat
+git commit -m "Add gadget firmware"
+git push
+```
 
-The metadata `name` and `notes` may be edited to identify a gadget/version and
-record test results. Do not change the checksum without replacing the BIN.
-New imports are marked unverified; adding or pushing one does not prove it works.
+The GUI's **GitHub push commands…** button displays these commands, adjusted
+for its own project folder. It does not run them or upload anything.
 
-## 6. Give technicians the collection
+## Receive updates on another PC
 
-For a private repository, grant the intended people access through GitHub's
-repository access settings. Technicians can clone it through GitHub Desktop
-and run `Start_Updater.bat`. Each clone contains the updater and firmware folder.
-On subsequent visits, use **Fetch origin**, then **Pull origin** if offered,
-before opening the updater. Resolve or commit local changes before pulling;
-do not discard firmware that has not been shared yet.
+Clone the repository once. Later, from a clean local working tree, run:
 
-For technicians who should only program gadgets, distribute a tested EXE with
-its sibling firmware folder and the required AVRDUDE tool/configuration, or a
-project ZIP. A downloaded ZIP is not a Git checkout: it cannot itself push or
-pull changes. Use a clone for maintainers who will contribute BIN files.
+```bat
+git pull --ff-only
+```
 
-## Local vs. GitHub vs. gadget
+If that stops because local changes or divergent commits exist, retain the
+files and resolve the situation; do not discard unshared BINs. Each clone has
+its own local firmware collection; push/pull share the committed files.
+A ZIP download can run the updater but is not itself a Git clone.
 
-| Action | Result |
-| --- | --- |
-| Browse, checkbox off | Select external BIN only |
-| Browse, checkbox on | Copy BIN and metadata into the local firmware folder |
-| Commit | Save selected project changes in local Git history |
-| Push | Upload committed changes to GitHub |
-| Pull | Receive committed changes from GitHub |
-| Upgrade gadget | Program the connected gadget after creating its backup |
-| Restore backup | Restore that physical gadget's saved application |
+## Hardware backups
 
-Git history and gadget recovery are separate. Keep the verified hardware
-backups. They are saved outside the repository at `%LOCALAPPDATA%\CJP Upgrader`.
-The supplied `.gitignore` excludes caches, builds and common backup/log paths.
-The initial project contains an application BIN, not full device backups.
-
-## Official references
-
-- [Install and authenticate GitHub Desktop](https://docs.github.com/en/desktop/installing-and-authenticating-to-github-desktop)
-- [Create and publish a repository](https://docs.github.com/en/desktop/overview/creating-your-first-repository-using-github-desktop)
-- [Review, commit and push changes](https://docs.github.com/en/desktop/making-changes-in-a-branch/committing-and-reviewing-changes-to-your-project-in-github-desktop)
-- [Clone a repository](https://docs.github.com/en/desktop/adding-and-cloning-repositories/cloning-a-repository-from-github-to-github-desktop)
+Hardware backups/logs remain under `%LOCALAPPDATA%\CJP Upgrader`, outside the
+repository. Git history is separate from gadget restoration. Retain each
+physical gadget's backup folder with both `original.bin` and `backup.json`.

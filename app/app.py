@@ -13,6 +13,7 @@ from serial.tools import list_ports
 from gateway_link import BASE, Link
 from engine import validate_image, read_flash, save_backup, load_backup, make_target, program, sha
 from firmware_store import scan, add_file
+from profiles import identify_bootloader, mismatch_summary
 
 ASSETS=Path(getattr(sys,'_MEIPASS',Path(__file__).resolve().parent))
 DATA=Path(os.environ.get('LOCALAPPDATA',str(Path.home())))/'CJP Upgrader'
@@ -28,7 +29,7 @@ def find_avrdude():
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title('CodyNick Gadgets Updater');self.geometry('1000x810');self.minsize(850,700)
+        self.title('CodyNick Gadgets Updater v3');self.geometry('1000x810');self.minsize(850,700)
         self.events=queue.Queue();self.busy=False;self.stop=threading.Event();self.logfile=None
         self.port=tk.StringVar();self.image=tk.StringVar();self.avr=tk.StringVar(value=find_avrdude())
         self.catalog_choice=tk.StringVar();self.add_to_catalog=tk.BooleanVar(value=False)
@@ -62,7 +63,7 @@ class App(tk.Tk):
         tools=ttk.Frame(main);tools.pack(fill='x',pady=3)
         open_firmware=ttk.Button(tools,text='Open firmware folder',command=self.open_firmware_folder)
         open_firmware.pack(side='left')
-        publish=ttk.Button(tools,text='GitHub / Publish…',command=self.open_github)
+        publish=ttk.Button(tools,text='GitHub push commands…',command=self.open_github)
         publish.pack(side='left',padx=8);self.edit_buttons.extend([open_firmware,publish])
         ttk.Label(main,text='Use an application BIN built for 0x08000800. Layout checks cannot prove firmware compatibility.',wraplength=860).pack(anchor='w',pady=8)
         r=ttk.Frame(main);r.pack(fill='x',pady=8)
@@ -115,7 +116,7 @@ class App(tk.Tk):
             path,created=add_file(FIRMWARE,self.image.get())
             self.image.set(str(path));self.refresh_firmware(selected=path)
             self.log(('Added to local firmware folder: ' if created else 'Already in local firmware folder: ')+path.name)
-            self.log('Local only. Use GitHub / Publish to review and push when ready.')
+            self.log('Local only. Use GitHub push commands to review and push when ready.')
         except Exception as exc: messagebox.showerror('Cannot add firmware',str(exc),parent=self)
 
     def open_firmware_folder(self):
@@ -125,15 +126,11 @@ class App(tk.Tk):
         except OSError as exc: messagebox.showerror('Firmware folder',str(exc),parent=self)
 
     def open_github(self):
-        text=('To publish newly added firmware:\n\n1. In GitHub Desktop, select CodyNick_Gadgets_Updater.\n2. Review the firmware/ BIN and JSON changes.\n3. Commit them, then click Push origin.\n\nAdding a BIN locally does not upload it. See docs/GITHUB_SETUP.md for first-time setup.')
-        messagebox.showinfo('Publish firmware to GitHub',text,parent=self)
-        desktop=Path(os.environ.get('LOCALAPPDATA',''))/'GitHubDesktop/GitHubDesktop.exe'
-        if os.name=='nt' and desktop.is_file():
-            try: subprocess.Popen([str(desktop)])
-            except OSError as exc: messagebox.showerror('GitHub Desktop',str(exc),parent=self)
-        elif os.name=='nt':
-            try: os.startfile(str(PROJECT/'docs/GITHUB_SETUP.md'))
-            except OSError: os.startfile(str(PROJECT/'docs'))
+        commands=('cd /d "'+str(PROJECT)+'"\ngit add firmware\ngit diff --cached --stat\ngit commit -m "Add gadget firmware"\ngit push')
+        self.log('GitHub commands (run in Windows Command Prompt from a Git clone):\n'+commands)
+        messagebox.showinfo('Push firmware using Command Prompt',
+            'Run these commands from your local Git clone:\n\n'+commands+
+            '\n\nReview the staged files before committing. Commands are also in the terminal log.\nA downloaded ZIP folder must first be added to a clone. See docs/GITHUB_SETUP.md.',parent=self)
 
     def refresh(self):
         ports=list(list_ports.comports());self.port_map={f'{p.device} — {p.description}':p.device for p in ports}
@@ -216,11 +213,11 @@ class App(tk.Tk):
     def worker(self,mode,port,avr,conf,source):
         link=None;backup_path=None;writing=False;outcome=None
         try:
-            self.log('CodyNick Gadgets Updater v2 — '+mode.upper())
+            self.log('CodyNick Gadgets Updater v3 — '+mode.upper())
             self.ask('Disconnect gadget','Disconnect the gadget from CJP. Leave CJP connected by USB.\nClose Arduino Serial Monitor and other serial programs.\n\nClick OK to prepare the CJP automatically.')
             if self.stop.is_set(): raise RuntimeError('Stopped before programming.')
             self.stage('Preparing CJP gateway…',2)
-            command=[str(avr),'-C',str(conf),'-p','atmega328p','-c','arduino','-P',port,'-b','115200','-D','-U','flash:w:'+str(ASSETS/'gateway_v5.hex')+':i']
+            command=[str(avr),'-C',str(conf),'-p','atmega328p','-c','arduino','-P',port,'-b','115200','-D','-U','flash:w:'+str(ASSETS/'gateway_v6.hex')+':i']
             with subprocess.Popen(command,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,errors='replace',creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0)) as proc:
                 for line in proc.stdout: self.log(line.rstrip())
                 if proc.wait()!=0: raise RuntimeError('CJP gateway upload failed. Check COM port and close other serial applications.')
@@ -234,11 +231,14 @@ class App(tk.Tk):
             if mode=='restore' and len(source)!=size: raise RuntimeError('Backup/device flash sizes differ.')
             self.stage('Reading and saving backup — each block read twice…',12)
             current=read_flash(link,size,lambda f:self.stage('Reading backup — each block read twice…',12+f*33),twice=True)
-            if sha(current[:2048])!=KNOWN_BOOT_SHA:
-                raise RuntimeError('Bootloader differs from the verified gadget profile. No gadget erase/write was sent.')
             backup_path=save_backup(DATA/'backups',current,port);self.log('BACKUP_SAVED_AND_VERIFIED: '+str(backup_path))
+            profile=identify_bootloader(current[:2048],KNOWN_BOOT_SHA)
+            self.log('BOOTLOADER_PROFILE: '+(profile or 'Unrecognized — read-only backup permitted'))
+            if not profile:self.log(mismatch_summary(current[:2048]))
             if mode=='backup':
                 self.stage('Backup complete.',100);outcome=(True,'Backup saved and verified:\n'+str(backup_path));return
+            if not profile:
+                raise RuntimeError('Bootloader matches neither recognized profile. No gadget erase/write was sent.\nBackup saved: '+str(backup_path)+'\n'+mismatch_summary(current[:2048]))
             target=make_target(current,source) if mode=='upgrade' else source
             if target[:2048]!=current[:2048]: raise RuntimeError('Selected backup bootloader differs. Restore refused.')
             if self.stop.is_set(): raise RuntimeError('Stopped before gadget erase/write.')

@@ -16,8 +16,8 @@ gadget, build version and test results; keep its checksum unchanged. Imported
 files start with an explicit unverified status. A successful structural check
 does not establish hardware compatibility.
 
-Adding is local only. Use **GitHub / Publish…** to open the publishing guidance
-and GitHub Desktop. Review, commit, then push the files. Technicians receive the
+Adding is local only. Use **GitHub push commands…** to display the Command Prompt workflow.
+Review, commit, then push the files. Technicians receive the
 updated collection after pulling the repository. See `../docs/GITHUB_SETUP.md`.
 
 Application files only: do not add full device backups or bootloader images.

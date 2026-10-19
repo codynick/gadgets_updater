@@ -7,6 +7,58 @@
 #include <util/delay.h>
 #include <stdint.h>
 
+/* CJP v6 status: the original Lite binary configures 16 GRB/800 kHz pixels
+ * on Arduino A2 (PC2). Pixel 0 is blue when idle, green after H succeeds.
+ * Updates occur only between complete UART transactions, before PC response.
+ * The serial protocol remains CJP5 for compatibility with the tested host.
+ */
+static uint8_t led_pixels[49]; /* 48 stream bytes plus one safe look-ahead byte */
+static void status_led(uint8_t connected) {
+    for(uint8_t i=0;i<48;i++)led_pixels[i]=0;
+    led_pixels[0]=connected?10:0; /* GRB: green */
+    led_pixels[2]=connected?0:10; /* blue; same brightness as original Lite */
+    DDRC|=_BV(PC2);
+    PORTC&=~_BV(PC2);
+    _delay_us(300);
+    uint8_t saved=SREG;
+    __asm__ __volatile__("cli" ::: "memory");
+    uint8_t hi=PORTC|_BV(PC2),lo=PORTC&~_BV(PC2);
+    const uint8_t *ptr=led_pixels;
+    uint8_t value=*ptr++,bits=8,next=lo;
+    uint16_t count=48;
+    /* Same 20-cycle, 16 MHz waveform used by Lite's 800 kHz routine.
+     * Both bit paths and the byte boundary are exactly 20 CPU cycles.
+     */
+    __asm__ __volatile__(
+        "1: st %a[port], %[hi]\n\t"
+        "sbrc %[value], 7\n\t"
+        "mov %[next], %[hi]\n\t"
+        "dec %[bits]\n\t"
+        "st %a[port], %[next]\n\t"
+        "mov %[next], %[lo]\n\t"
+        "breq 2f\n\t"
+        "lsl %[value]\n\t"
+        "rjmp .+0\n\t"
+        "nop\n\t"
+        "st %a[port], %[lo]\n\t"
+        "nop\n\t"
+        "rjmp .+0\n\t"
+        "rjmp 1b\n\t"
+        "2: ldi %[bits], 8\n\t"
+        "ld %[value], %a[ptr]+\n\t"
+        "st %a[port], %[lo]\n\t"
+        "nop\n\t"
+        "sbiw %[count], 1\n\t"
+        "brne 1b\n\t"
+        : [ptr] "+&x" (ptr), [value] "+&r" (value),
+          [bits] "+&d" (bits), [next] "+&r" (next), [count] "+&w" (count)
+        : [port] "z" (&PORTC), [hi] "r" (hi), [lo] "r" (lo)
+        : "cc", "memory"
+    );
+    SREG=saved;
+    _delay_us(300);
+}
+
 static void out(char c) { while (!(UCSR0A & _BV(UDRE0))) {} UDR0=c; }
 static void msg(const char *s) { while (*s) out(*s++); }
 static void num(uint16_t n) { char b[6]; uint8_t i=0; do { b[i++]='0'+n%10; n/=10; } while(n); while(i)out(b[--i]); }
@@ -217,7 +269,7 @@ static uint8_t write_application(uint32_t address,uint8_t count) {
 }
 static void dispatch(uint8_t length) {
     if(command=='P' && !length){response(0,(const uint8_t *)"CJP5",4);return;}
-    if(command=='H' && !length){ready=0;flash_kb=0;ready=handshake();response(ready?0:1,&flash_kb,1);return;}
+    if(command=='H' && !length){ready=0;flash_kb=0;status_led(0);ready=handshake();status_led(ready);response(ready?0:1,&flash_kb,1);return;}
     if(!ready){response(2,0,0);return;}
     if(command=='R' && length==5) {
         uint32_t a=address_of(payload);uint8_t n=payload[4];
@@ -231,28 +283,29 @@ static void dispatch(uint8_t length) {
         if(!allowed(a,n,1)){response(3,0,0);return;}
         if(write_application(a,n)){response(0,payload,4);return;}
     } else {response(3,0,0);return;}
-    ready=0;response(1,0,0);
+    ready=0;status_led(0);response(1,0,0);
 }
 int main(void) {
     UCSR0A=0;UBRR0H=0;UBRR0L=103;
     UCSR0C=_BV(UCSZ01)|_BV(UCSZ00);UCSR0B=_BV(RXEN0)|_BV(TXEN0);
     TCCR1A=0;TCCR1B=_BV(CS11);TCNT1=0;
     DDRC&=~(_BV(PC4)|_BV(PC5));PORTC|=_BV(PC4)|_BV(PC5);
+    status_led(0);
     msg("CJP APPLICATION TOOL v5; bootloader pages 0 and 1 excluded\r\n");
     for(;;) {
         uint8_t b,length,hi,lo;
         if(!pc_byte(&b) || b!=0xc3)continue;
         if(!pc_byte(&b) || b!=0x5a)continue;
         if(!pc_byte(&seq) || !pc_byte(&command) || !pc_byte(&length))continue;
-        if(length>sizeof(payload)){ready=0;continue;}
+        if(length>sizeof(payload)){ready=0;status_led(0);continue;}
         uint16_t crc=crc_step(crc_step(crc_step(0xffff,seq),command),length);
         uint8_t complete=1;
         for(uint8_t i=0;i<length;i++) {
             if(!pc_byte(&payload[i])){complete=0;break;}
             crc=crc_step(crc,payload[i]);
         }
-        if(!complete || !pc_byte(&hi) || !pc_byte(&lo)){ready=0;continue;}
-        if(crc!=((uint16_t)hi<<8|lo)){ready=0;response(4,0,0);continue;}
+        if(!complete || !pc_byte(&hi) || !pc_byte(&lo)){ready=0;status_led(0);continue;}
+        if(crc!=((uint16_t)hi<<8|lo)){ready=0;status_led(0);response(4,0,0);continue;}
         dispatch(length);
     }
 }

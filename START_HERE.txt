@@ -1,0 +1,35 @@
+CODY NICK GADGETS UPDATER — COMPLETE RELEASE v3
+
+This is a full application, not a patch. No previous release is required.
+
+1. Extract the ZIP into a NEW folder. Open its gadgets_updater folder.
+2. Double-click Start_Updater.bat.
+3. Select COM6, or the COM port used by CJP.
+4. For the first K6 test, click Backup only; no BIN selection is needed.
+5. Disconnect/connect the gadget exactly when the GUI prompts.
+6. Check the terminal's BOOTLOADER_PROFILE line and share the output.
+   Backup only does not erase/write the gadget. The GUI still prepares CJP.
+
+Included: local firmware list, BIN browser/import checkbox, live terminal,
+progress bar, backup/restore, blue-to-green CJP LED, original and supplied K6
+bootloader profiles, seven-segment application BIN and command-line Git guide.
+
+Do NOT program the supplied bootloader HEX. It is an identification reference.
+All first 2 KB gadget bytes remain protected. Unknown bootloaders can be backed
+up read-only but cannot be upgraded/restored until reviewed.
+
+Python, tkinter and pyserial are already available on your tested computer.
+If dependencies are missing elsewhere, install Python, then:
+  py -m pip install -r requirements.txt
+AVRDUDE from the Arduino installation is detected automatically or can be browsed.
+Start_Updater.bat uses this release immediately; an older EXE remains older code.
+Build_Windows_EXE.bat optionally builds a new EXE on Windows; not yet tested here.
+
+Backups/logs stay at LOCALAPPDATA\CJP Upgrader, shared with earlier GUI versions.
+GUI v1/v2 backup.json files remain supported. Keep their original.bin beside them.
+First run from this separate extracted folder leaves the prior installation and
+Git clone intact. To publish after testing, see docs\GITHUB_SETUP.md.
+
+31 automated tests passed. Physical K6 recognition and LED behavior still need
+confirmation on your hardware. The existing seven-segment v5 programming path
+was successfully tested previously.
